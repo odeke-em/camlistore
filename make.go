@@ -44,6 +44,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"camlistore.org/pkg/osutil"
 )
 
 var haveSQLite = checkHaveSQLite()
@@ -261,14 +263,25 @@ func main() {
 // create the tmp GOPATH, and mirror to it from camRoot.
 // return the latest modtime among all of the walked files.
 func mirror(sql bool) (latestSrcMod time.Time) {
-	verifyCamlistoreRoot(camRoot)
+	ccamRoot := camRoot
+	vErr := atCamlistoreRoot(ccamRoot)
+	if vErr != nil {
+		parentDir, relErr := osutil.RelCamliSrcRoot()
+		if relErr != nil {
+			log.Fatalf("Failed to get camlistore root: %v", relErr)
+		}
+
+		// Override it
+		ccamRoot = parentDir
+	}
+	verifyCamlistoreRoot(ccamRoot)
 
 	buildBaseDir := "build-gopath"
 	if !sql {
 		buildBaseDir += "-nosqlite"
 	}
 
-	buildGoPath = filepath.Join(camRoot, "tmp", buildBaseDir)
+	buildGoPath = filepath.Join(ccamRoot, "tmp", buildBaseDir)
 	buildSrcDir = filepath.Join(buildGoPath, "src", "camlistore.org")
 
 	if err := os.MkdirAll(buildSrcDir, 0755); err != nil {
@@ -283,7 +296,7 @@ func mirror(sql bool) (latestSrcMod time.Time) {
 	// Copy files we do want in our mirrored GOPATH.  This has the side effect of
 	// populating wantDestFile, populated by mirrorFile.
 	for _, dir := range goDirs {
-		srcPath := filepath.Join(camRoot, filepath.FromSlash(dir))
+		srcPath := filepath.Join(ccamRoot, filepath.FromSlash(dir))
 		dstPath := buildSrcPath(dir)
 		if maxMod, err := mirrorDir(srcPath, dstPath, walkOpts{sqlite: sql}); err != nil {
 			log.Fatalf("Error while mirroring %s to %s: %v", srcPath, dstPath, err)
@@ -503,10 +516,17 @@ func gitVersion() string {
 	return v
 }
 
-// verifyCamlistoreRoot crashes if dir isn't the Camlistore root directory.
-func verifyCamlistoreRoot(dir string) {
+func atCamlistoreRoot(dir string) error {
 	testFile := filepath.Join(dir, "pkg", "blob", "ref.go")
 	if _, err := os.Stat(testFile); err != nil {
+		return err
+	}
+	return nil
+}
+
+// verifyCamlistoreRoot crashes if dir isn't the Camlistore root directory.
+func verifyCamlistoreRoot(dir string) {
+	if err := atCamlistoreRoot(dir); err != nil {
 		log.Fatalf("make.go must be run from the Camlistore src root directory (where make.go is). Current working directory is %s", dir)
 	}
 }

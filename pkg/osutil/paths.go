@@ -249,6 +249,19 @@ func FindCamliInclude(configFile string) (absPath string, err error) {
 	return "", os.ErrNotExist
 }
 
+func RelCamliSrcRoot() (string, error) {
+	devCamBin, dcbErr := SelfPath()
+	if dcbErr != nil {
+		return "", dcbErr
+	}
+	parentDir := devCamBin
+	stripablePaths := []string{"bin", "devcam"}
+	for _, _ = range stripablePaths {
+		parentDir = filepath.Dir(parentDir)
+	}
+	return parentDir, nil
+}
+
 // GoPackagePath returns the path to the provided Go package's
 // source directory.
 // pkg may be a path prefix without any *.go files.

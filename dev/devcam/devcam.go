@@ -156,17 +156,24 @@ func checkCamliSrcRoot() {
 		// exception for devcam review, which does its own check.
 		return
 	}
-	if _, err := os.Stat("make.go"); err != nil {
+	srcRoot, relErr := osutil.RelCamliSrcRoot()
+	if relErr != nil {
+		log.Fatalf("Could not obtain the camliSrcroot: %v", relErr)
+	}
+	if srcRoot == "" {
+		if cwd, err := os.Getwd(); err != nil {
+			log.Fatal(err)
+		}
+		camliSrcRoot = cwd
+	}
+	camliSrcRoot = srcRoot
+	makePath := filepath.Join(camliSrcRoot, "make.go")
+	if _, err := os.Stat(camliSrcRoot); err != nil {
 		if !os.IsNotExist(err) {
 			log.Fatalf("Could not stat make.go: %v", err)
 		}
-		log.Fatal("./make.go not found; devcam needs to be run from the Camlistore source tree root.")
+		log.Fatal("%s not found; devcam needs to be run from the Camlistore source tree root.", makePath)
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
-	}
-	camliSrcRoot = cwd
 }
 
 func selfModTime() (time.Time, error) {
@@ -188,7 +195,13 @@ func checkModtime() error {
 		return fmt.Errorf("could not get ModTime of current devcam executable: %v", err)
 	}
 
-	devcamDir := filepath.Join(camliSrcRoot, "dev", "devcam")
+	parentDir, relErr := osutil.RelCamliSrcRoot()
+	if relErr != nil {
+		return relErr
+	}
+
+	devcamDir := filepath.Join(parentDir, "dev", "devcam")
+
 	d, err := os.Open(devcamDir)
 	if err != nil {
 		log.Fatal(err)
@@ -227,8 +240,11 @@ func build(path string) error {
 	} else {
 		modtime = fi.ModTime().Unix()
 	}
+
+	makePath := filepath.Join(camliSrcRoot, "make.go")
+
 	args := []string{
-		"run", "make.go",
+		"run", makePath,
 		"--quiet",
 		"--race=" + strconv.FormatBool(*race),
 		"--embed_static=false",
