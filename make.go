@@ -264,8 +264,7 @@ func main() {
 // return the latest modtime among all of the walked files.
 func mirror(sql bool) (latestSrcMod time.Time) {
 	ccamRoot := camRoot
-	vErr := atCamlistoreRoot(ccamRoot)
-	if vErr != nil {
+	if vErr := atCamlistoreRoot(ccamRoot); vErr != nil {
 		parentDir, relErr := osutil.RelCamliSrcRoot()
 		if relErr != nil {
 			log.Fatalf("Failed to get camlistore root: %v", relErr)
@@ -291,7 +290,8 @@ func mirror(sql bool) (latestSrcMod time.Time) {
 	// We copy all *.go files from camRoot's goDirs to buildSrcDir.
 	goDirs := []string{"app", "cmd", "depcheck", "pkg", "dev", "server/camlistored", "third_party"}
 	if *onlysync {
-		goDirs = append(goDirs, "server/appengine", "config")
+		appEnginePath := filepath.Join("server", "appengine")
+		goDirs = append(goDirs, appEnginePath, "config")
 	}
 	// Copy files we do want in our mirrored GOPATH.  This has the side effect of
 	// populating wantDestFile, populated by mirrorFile.

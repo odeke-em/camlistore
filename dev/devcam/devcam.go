@@ -161,14 +161,15 @@ func checkCamliSrcRoot() {
 		log.Fatalf("Could not obtain the camliSrcroot: %v", relErr)
 	}
 	if srcRoot == "" {
-		if cwd, err := os.Getwd(); err != nil {
+		cwd, err := os.Getwd()
+		if err != nil {
 			log.Fatal(err)
 		}
-		camliSrcRoot = cwd
+		srcRoot = cwd
 	}
 	camliSrcRoot = srcRoot
 	makePath := filepath.Join(camliSrcRoot, "make.go")
-	if _, err := os.Stat(camliSrcRoot); err != nil {
+	if _, err := os.Stat(makePath); err != nil {
 		if !os.IsNotExist(err) {
 			log.Fatalf("Could not stat make.go: %v", err)
 		}
